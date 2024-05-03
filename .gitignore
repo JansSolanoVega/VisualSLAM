@@ -1,2 +1,4 @@
 __pycache__/
-test_video_2.mp4
+*.mp4
+kitti_dataset/
+KITTI_sequence_1/

@@ -12,13 +12,16 @@ DATA_DIR = "kitti_dataset"
 
 
 class visual_odometry_monocular:
-    def __init__(self, sequence_id=0):
+    def __init__(self, sequence_id=0, camera_id=2):
         self.sequence_id = sequence_id
         self.pose_file_path = os.path.join(
             DATA_DIR, "poses", str(sequence_id).zfill(2) + ".txt"
         )
         self.img_file_path = os.path.join(
-            DATA_DIR, "sequences", str(sequence_id).zfill(2), "image_2"
+            DATA_DIR, "sequences", str(sequence_id).zfill(2), "image_" + str(camera_id)
+        )
+        self.calib_file_path = os.path.join(
+            DATA_DIR, "sequences", str(sequence_id).zfill(2), "calib.txt"
         )
         try:
             with open(self.pose_file_path) as f:
@@ -28,8 +31,11 @@ class visual_odometry_monocular:
                 "The pose_file_path is not valid or did not lead to a txt file"
             )
 
+        camera_params = load_calib(self.calib_file_path, camera_id=camera_id)
         self.detector = feature_detector(threshold=20, nonmaxSuppression=True)
-        self.feature_tracker = klt_feature_tracker(true_poses=self.poses)
+        self.feature_tracker = klt_feature_tracker(
+            camera_params=camera_params, true_poses=self.poses
+        )
 
         self.current_frame = cv2.imread(
             os.path.join(self.img_file_path, str(0).zfill(6) + ".png"), 0
@@ -57,13 +63,19 @@ class visual_odometry_monocular:
         )
 
     def get_mono_coordinates(self):
-        diag = np.array([[-1, 0, 0], [0, -1, 0], [0, 0, -1]])
+        diag = np.array(
+            [[1, 0, 0], [0, 1, 0], [0, 0, -1]]
+        )  # Matching to opencv coordinates (vertical direction is flipped)
         adj_coord = np.matmul(diag, self.t)
 
         return adj_coord.flatten()
 
     def get_mse_error(self):
-        return np.linalg.norm(self.get_mono_coordinates() - self.get_true_coordinates())
+        mono_coordinates = self.get_mono_coordinates()
+        true_coordinates = self.get_true_coordinates()
+        print("Mono coordinates:", mono_coordinates)
+        print("True coordinates:", true_coordinates)
+        return np.linalg.norm(mono_coordinates - true_coordinates)
 
 
 if __name__ == "__main__":

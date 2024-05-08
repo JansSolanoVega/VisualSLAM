@@ -8,6 +8,7 @@ class klt_feature_tracker:
     def __init__(
         self,
         true_poses,
+        camera_params,
         winSize=(21, 21),
         max_number_iterations=30,
         epsilon_or_accuracy=0.01,
@@ -20,8 +21,8 @@ class klt_feature_tracker:
                 epsilon_or_accuracy,
             ),
         )
-        self.focal_length = 718.8560  # from camera
-        self.principal_point = (607.1928, 185.2157)
+        self.focal_length = camera_params["focal_length"]
+        self.principal_point = camera_params["principal_point"]
 
         # Rotation and traslation matrix
         self.R = np.zeros(shape=(3, 3))
@@ -35,6 +36,30 @@ class klt_feature_tracker:
         prev_vect = get_vect_from_pose(pose1)
 
         return np.linalg.norm(true_vect - prev_vect)
+
+    def get_extrinsic_params(self, tracked_pts_img1, tracked_pts_img2):
+        # 5 points are the min number of points to compute the essential matrix
+        E, _ = cv2.findEssentialMat(  # RANSAC separates data into inliers and outliers
+            # At every iterationit randomly samples five points and estimates E
+            # Then check if the other points are inliers when using this E
+            # E with the maximum number of points agree is chosen
+            tracked_pts_img1,
+            tracked_pts_img2,
+            focal=self.focal_length,
+            pp=self.principal_point,
+            method=cv2.RANSAC,
+            prob=0.999,
+            threshold=1.0,
+        )
+
+        _, R, t, _ = cv2.recoverPose(
+            E=E,
+            points1=tracked_pts_img1,
+            points2=tracked_pts_img2,
+            focal=self.focal_length,
+            pp=self.principal_point,
+        )
+        return R, t
 
     def track_step(self, img1, img2, feature_pts_img1, img_id):
         # status returns 1 if the flow has been found, otherwise, it is set to 0
@@ -50,23 +75,7 @@ class klt_feature_tracker:
         tracked_pts_img1 = feature_pts_img1[status == 1]
         tracked_pts_img2 = feature_pts_img2[status == 1]
 
-        E, _ = cv2.findEssentialMat(
-            tracked_pts_img2,
-            tracked_pts_img1,
-            focal=self.focal_length,
-            pp=self.principal_point,
-            method=cv2.RANSAC,
-            prob=0.999,
-            threshold=1.0,
-        )
-
-        _, R, t, _ = cv2.recoverPose(  # refines the initial estimate of R and T
-            E=E,
-            points1=tracked_pts_img1,
-            points2=tracked_pts_img2,
-            focal=self.focal_length,
-            pp=self.principal_point,
-        )
+        R, t = self.get_extrinsic_params(tracked_pts_img1, tracked_pts_img2)
 
         if img_id < 2:
             self.R = R

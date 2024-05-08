@@ -9,12 +9,26 @@ def form_transformation(R, t):
     return T
 
 
-def load_calib(filepath):
+def load_calib(filepath, camera_id):
+    parameters = {}
     with open(filepath, "r") as f:
-        params = np.fromstring(f.readline(), dtype=np.float64, sep=" ")
-        P = np.reshape(params, (3, 4))  # Projection matrix: A_(int,f)*Pf
+        params = np.fromstring(
+            f.readlines()[camera_id].split(":")[1], dtype=np.float64, sep=" "
+        )
+        P = np.reshape(
+            params, (3, 4)
+        )  # Projection matrix: Intrinsic + baselines with respect to reference camera
         K = P[0:3, 0:3]  # Intrinsic matrix
-    return K, P
+        theta = 90
+        ku = 1
+        kv = 1
+        f = K[0][0] / ku
+        f = K[1][1] * np.sin(theta * np.pi / 180) / kv
+        u_0 = K[0][2]
+        v_0 = K[1][2]
+    parameters["focal_length"] = f
+    parameters["principal_point"] = (u_0, v_0)
+    return parameters
 
 
 def get_vect_from_pose(pose):
@@ -31,16 +45,25 @@ def show_image(img, shape=(1080, 720)):
 
 
 class plotter:
-    def __init__(self, shape=(1440, 720)):
+    def __init__(self, shape=(1440, 720), center=(100, 200)):
         self.shape = shape
         self.traj = np.zeros(shape=(shape[0] // 2, shape[1], 3))
+        self.center = center
 
     def get_trajectory_step(self, true_x, true_z, draw_x, draw_z):
         self.traj = cv2.circle(
-            self.traj, (true_x + 400, true_z + 100), 1, list((0, 0, 255)), 4
+            self.traj,
+            (true_x + self.center[0], true_z + self.center[1]),
+            1,
+            list((0, 0, 255)),
+            4,
         )
         self.traj = cv2.circle(
-            self.traj, (draw_x + 400, draw_z + 100), 1, list((0, 255, 0)), 4
+            self.traj,
+            (draw_x + self.center[0], draw_z + self.center[1]),
+            1,
+            list((0, 255, 0)),
+            4,
         )
 
         cv2.putText(

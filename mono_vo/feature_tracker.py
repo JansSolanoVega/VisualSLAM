@@ -1,6 +1,6 @@
 import cv2
 import os
-from feature_detector import *
+from mono_vo.feature_detector import *
 from utils import *
 
 

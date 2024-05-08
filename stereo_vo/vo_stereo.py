@@ -1,7 +1,7 @@
 import cv2
 import os
 import matplotlib.pyplot as plt
-from feature_matcher import *
+from classes.feature_matcher import *
 from utils import *
 import numpy as np
 

@@ -1,4 +1,4 @@
-from vo_monocular import *
+from mono_vo.vo_monocular import *
 from utils import *
 
 vo = visual_odometry_monocular(sequence_id=0)

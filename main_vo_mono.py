@@ -1,7 +1,7 @@
 from vo_monocular import *
 from utils import *
 
-vo = visual_odometry_monocular(sequence_id=2)
+vo = visual_odometry_monocular(sequence_id=0)
 plotter = plotter()
 for i in range(1540):
     vo.process_frame()

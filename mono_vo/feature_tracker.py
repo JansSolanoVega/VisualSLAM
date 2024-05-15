@@ -1,8 +1,8 @@
 import cv2
-import os
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils import *              
 from mono_vo.feature_detector import *
-from utils import *
-
 
 class klt_feature_tracker:
     def __init__(
@@ -98,7 +98,6 @@ class klt_feature_tracker:
 
 
 if __name__ == "__main__":
-    data_dir = "kitti_dataset/sequences/00"
     tracker = klt_feature_tracker()
     detector = feature_detector(threshold=20, nonmaxSuppression=True)
     img1 = cv2.imread(os.path.join(data_dir, "image_2", "000000.png"))

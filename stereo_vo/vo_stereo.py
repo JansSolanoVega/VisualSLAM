@@ -1,73 +1,79 @@
 import cv2
-import os
 import matplotlib.pyplot as plt
-from classes.feature_matcher import *
-from utils import *
 import numpy as np
+import sys, os
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from stereo_vo.disparity_computer import *
+from mono_vo.feature_detector import *
 
-class visualOdometry:
-    def __init__(self, data_dir, imgs):
-        self.orb = cv2.ORB_create(500)  # Number of features
-        self.fm = feature_matcher(type="bf")
-        self.images = imgs
-        self.IntrinsicMatrix, self.ProjectionMatrix = load_calib(
-            os.path.join(data_dir, "calib.txt")
+DATA_DIR = "kitti_dataset"
+
+class visual_odometry_stereo:
+    def __init__(self, sequence_id=0):
+        self.sequence_id = sequence_id
+        self.pose_file_path = os.path.join(
+            DATA_DIR, "poses", str(sequence_id).zfill(2) + ".txt"
+        )
+        self.imgs_file_path = os.path.join(DATA_DIR, "sequences", str(sequence_id).zfill(2)) 
+        self.calib_file_path = os.path.join(
+            DATA_DIR, "sequences", str(sequence_id).zfill(2), "calib.txt"
+        )
+        try:
+            with open(self.pose_file_path) as f:
+                self.poses = f.readlines()
+        except Exception as e:
+            raise ValueError(
+                "The pose_file_path is not valid or did not lead to a txt file"
+            )
+
+        self.img_l_path = os.path.join(self.imgs_file_path, "image_2") 
+        self.img_r_path = os.path.join(self.imgs_file_path, "image_3") 
+
+        self.detector = feature_detector(threshold=20, nonmaxSuppression=True)
+        self.disp_computer = disparity_computer(numDisparities=64, blockSize=9)
+
+        self.current_frame_l = read_img_gray(self.img_l_path, 0)
+        self.current_frame_r = read_img_gray(self.img_r_path, 0)
+        self.img_id = 0
+
+    def process_frame(self):
+        self.img_id += 1
+        self.old_frame = self.current_frame
+        self.current_frame_l = read_img_gray(self.img_l_path, self.img_id)
+        self.current_frame_r = read_img_gray(self.img_r_path, self.img_id)
+        
+        self.current_disparity = self.disp_computer(self.current_frame_l, self.current_frame_r)
+
+        feature_points = self.detector.detect(self.current_frame_l)
+        
+        self.t = self.feature_tracker.track_step(
+            self.old_frame, self.current_frame, feature_points, self.img_id
         )
 
-    def get_matches_between_imgs(self, i):
-        keypoints1, descriptors1 = self.orb.detectAndCompute(self.images[i - 1], None)
-        keypoints2, descriptors2 = self.orb.detectAndCompute(self.images[i], None)
-        matches = self.fm.get_matches(descriptors1, descriptors2)
-        self.fm.draw_matches(
-            self.images[i - 1], keypoints1, self.images[i], keypoints2, matches
+    def get_true_coordinates(self):
+        return get_vect_from_pose(
+            self.poses[self.img_id].strip().split(),
         )
 
-        good_keypoints_1 = np.float32([keypoints1[m.queryIdx].pt for m in matches])
-        good_keypoints_2 = np.float32([keypoints2[m.trainIdx].pt for m in matches])
-        return good_keypoints_1, good_keypoints_2
+    def get_mono_coordinates(self):
+        diag = np.array(
+            [[1, 0, 0], [0, 1, 0], [0, 0, -1]]
+        )  # Matching to opencv coordinates (vertical direction is flipped)
+        adj_coord = np.matmul(diag, self.t)
 
-    def get_transformation_matrix(self, kp1, kp2):
-        essential_matrix, _ = cv2.findEssentialMat(kp1, kp2, self.K)
-        R1, R2, t = cv2.decomposeEssentialMat(essential_matrix)
+        return adj_coord.flatten()
 
-        # Four possible transformations
-        T1 = form_transformation(R1, np.ndarray.flatten(t))
-        T2 = form_transformation(R2, np.ndarray.flatten(t))
-        T3 = form_transformation(R1, np.ndarray.flatten(-t))
-        T4 = form_transformation(R2, np.ndarray.flatten(-t))
-        transformations = [T1, T2, T3, T4]
-
-        # Projections
-        projections = [
-            self.ProjectionMatrix @ T1,
-            self.ProjectionMatrix @ T2,
-            self.ProjectionMatrix @ T3,
-            self.ProjectionMatrix @ T4,
-        ]
-
-        for P, T in zip(projections, transformations):
-            hom_Q1 = cv2.triangulatePoints(self.IntrinsicMatrix, P, kp1, kp2)
-            hom_Q2 = T @ hom_Q1
-
-    def find_features_img(self, img):
-        keypoints = self.orb.detect(img, None)  # Performing FAST feature detector
-        keypoints, _ = self.orb.compute(
-            img, keypoints
-        )  # Performing BRIEF descriptor method
-        img = cv2.drawKeypoints(
-            img,
-            keypoints,
-            outImage=None,
-            flags=0,  # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS,
-        )
-        show_image(img)
+    def get_mse_error(self):
+        mono_coordinates = self.get_mono_coordinates()
+        true_coordinates = self.get_true_coordinates()
+        print("Mono coordinates:", mono_coordinates)
+        print("True coordinates:", true_coordinates)
+        return np.linalg.norm(mono_coordinates - true_coordinates)
 
 
 if __name__ == "__main__":
-    data_dir = "KITTI_sequence_1"
-    img1 = cv2.imread(os.path.join(data_dir, "image_r", "000000.png"))
-    img2 = cv2.imread(os.path.join(data_dir, "image_r", "000001.png"))
-    vo = visualOdometry(data_dir, imgs=[img1, img2])
-    kp1, kp2 = vo.get_matches_between_imgs(i=0)
-    print(len(kp1[0]))
+    vo = visual_odometry_monocular(sequence_id=2)
+    vo.process_frame()
+    print("Current traslation:", vo.t)
+    print("MSE error:", vo.get_mse_error())

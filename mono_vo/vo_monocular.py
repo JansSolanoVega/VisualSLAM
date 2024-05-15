@@ -1,9 +1,9 @@
 import cv2
-import os
 import matplotlib.pyplot as plt
-from utils import *
 import numpy as np
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from mono_vo.feature_tracker import *
 from mono_vo.feature_detector import *
 
@@ -36,17 +36,13 @@ class visual_odometry_monocular:
             camera_params=camera_params, true_poses=self.poses
         )
 
-        self.current_frame = cv2.imread(
-            os.path.join(self.img_file_path, str(0).zfill(6) + ".png"), 0
-        )
+        self.current_frame = cv2.imread(get_path_img(self.img_file_path, 0), 0)
         self.img_id = 0
 
     def process_frame(self):
         self.img_id += 1
         self.old_frame = self.current_frame
-        self.current_frame_full_color = cv2.imread(
-            os.path.join(self.img_file_path, str(self.img_id).zfill(6) + ".png")
-        )
+        self.current_frame_full_color = cv2.imread(get_path_img(self.img_file_path, self.img_id))
         self.current_frame = cv2.cvtColor(
             self.current_frame_full_color, cv2.COLOR_RGB2GRAY
         )

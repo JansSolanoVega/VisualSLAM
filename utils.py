@@ -1,6 +1,12 @@
 import cv2
 import numpy as np
+import os
 
+def read_img_gray(path, id):
+    return cv2.imread(get_path_img(path, id), 0)
+    
+def get_path_img(img_file_path, id_img):
+    return os.path.join(img_file_path, str(id_img).zfill(6) + ".png")
 
 def form_transformation(R, t):
     T = np.eye(4, dtype=np.float64)

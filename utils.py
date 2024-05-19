@@ -7,6 +7,20 @@ def read_img_gray(path, id):
     return cv2.imread(get_path_img(path, id), 0)
 
 
+def double_check_inside_image(pts1, pts2, shape):
+    new_pts1 = []
+    new_pts2 = []
+    for feature_pt in zip(pts1, pts2):
+        if pt_within_img(feature_pt[0], shape) and pt_within_img(feature_pt[1], shape):
+            new_pts1.append(feature_pt[0])
+            new_pts2.append(feature_pt[1])
+    return np.array(new_pts1), np.array(new_pts2)
+
+
+def pt_within_img(pt, shape):
+    return 0 <= pt[0] <= shape[1] and 0 <= pt[1] <= shape[0]
+
+
 def get_path_img(img_file_path, id_img):
     return os.path.join(img_file_path, str(id_img).zfill(6) + ".png")
 

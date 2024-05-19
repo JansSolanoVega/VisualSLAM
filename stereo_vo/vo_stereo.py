@@ -1,10 +1,10 @@
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import sys, os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from stereo_vo.disparity_computer import *
+from stereo_vo.inlier_detector import *
 from mono_vo.feature_detector import *
 from mono_vo.feature_tracker import *
 
@@ -24,7 +24,7 @@ class visual_odometry_stereo:
         self.img_l_path = self.img_file_path + "2"
         self.img_r_path = self.img_file_path + "3"
 
-        self.detector = feature_detector(threshold=20, nonmaxSuppression=True)
+        self.feature_detector = feature_detector(threshold=20, nonmaxSuppression=True)
         self.disp_computer = disparity_computer(numDisparities=64, blockSize=9)
 
         self.current_frame_l = read_img_gray(self.img_l_path, id=0)
@@ -32,9 +32,7 @@ class visual_odometry_stereo:
         self.img_id = 0
 
         self.camera_params_l = load_calib(self.calib_file_path, camera_id=2)
-        self.camera_params_r = load_calib(self.calib_file_path, camera_id=3)
         self.feature_tracker_l = klt_feature_tracker(camera_params=self.camera_params_l)
-        self.feature_tracker_r = klt_feature_tracker(camera_params=self.camera_params_r)
 
     def triangulate(self, camera_params_l, feature_pts, disparity, r_camera_shift=0.54):
         points_3d = []
@@ -56,8 +54,7 @@ class visual_odometry_stereo:
         return points_3d
 
     def process_frame(self):
-        self.img_id += 1
-        self.old_frame_l = self.current_frame_l
+
         self.curr_frame_l = read_img_gray(self.img_l_path, self.img_id)
         self.curr_frame_r = read_img_gray(self.img_r_path, self.img_id)
 
@@ -65,19 +62,33 @@ class visual_odometry_stereo:
             self.curr_frame_l, self.curr_frame_r
         )
 
-        feature_pts_l = self.detector.detect(self.old_frame_l)
+        self.feature_pts_l = self.feature_detector.detect(self.curr_frame_l)
 
-        tracked_pts_old_l, tracked_pts_curr_l = (
-            self.feature_tracker_l.find_correspondance_points(
-                feature_pts_l, self.old_frame_l, self.curr_frame_l
+        if self.img_id > 0:
+            tracked_pts_old_l, tracked_pts_curr_l = (
+                self.feature_tracker_l.find_correspondance_points(
+                    self.feature_pts_l_old, self.old_frame_l, self.curr_frame_l
+                )
             )
-        )
 
-        points_3d = self.triangulate(
-            self.camera_params_l, tracked_pts_curr_l, self.curr_disparity
-        )
+            points_3d_old = self.triangulate(
+                self.camera_params_l, tracked_pts_old_l, self.old_disparity
+            )
 
-        return points_3d
+            points_3d_curr = self.triangulate(
+                self.camera_params_l, tracked_pts_curr_l, self.curr_disparity
+            )
+
+            points_3d_old, points_3d_curr = inlier_detector(
+                points_3d_old, points_3d_curr
+            )
+            return points_3d_curr
+
+        self.old_frame_l = self.current_frame_l
+        self.feature_pts_l_old = self.feature_pts_l
+        self.old_disparity = self.curr_disparity
+
+        self.img_id += 1
 
     def get_true_coordinates(self):
         return get_vect_from_pose(
@@ -103,5 +114,3 @@ class visual_odometry_stereo:
 if __name__ == "__main__":
     vo = visual_odometry_stereo(sequence_id=2)
     vo.process_frame()
-    print("Current traslation:", vo.t)
-    print("MSE error:", vo.get_mse_error())

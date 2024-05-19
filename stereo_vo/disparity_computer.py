@@ -30,5 +30,5 @@ if __name__ == "__main__":
     disparity = disparity_computer()
     img1 = cv2.imread(os.path.join(data_dir, "image_2", "000000.png"), 0)
     img2 = cv2.imread(os.path.join(data_dir, "image_3", "000000.png"), 0)
-    disp = disparity.compute(img1, img2)
+    disp = disparity.compute(img1, img2, show=True)
     show_image(disp)

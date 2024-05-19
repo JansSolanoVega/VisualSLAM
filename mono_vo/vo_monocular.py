@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from mono_vo.feature_tracker import *
 from mono_vo.feature_detector import *
 
@@ -13,27 +14,20 @@ DATA_DIR = "kitti_dataset"
 class visual_odometry_monocular:
     def __init__(self, sequence_id=0, camera_id=2):
         self.sequence_id = sequence_id
-        self.pose_file_path = os.path.join(
-            DATA_DIR, "poses", str(sequence_id).zfill(2) + ".txt"
+
+        self.pose_file_path, self.img_file_path, self.calib_file_path = load_paths(
+            DATA_DIR, sequence_id
         )
-        self.img_file_path = os.path.join(
-            DATA_DIR, "sequences", str(sequence_id).zfill(2), "image_" + str(camera_id)
-        )
-        self.calib_file_path = os.path.join(
-            DATA_DIR, "sequences", str(sequence_id).zfill(2), "calib.txt"
-        )
-        try:
-            with open(self.pose_file_path) as f:
-                self.poses = f.readlines()
-        except Exception as e:
-            raise ValueError(
-                "The pose_file_path is not valid or did not lead to a txt file"
-            )
+
+        self.img_file_path += str(camera_id)
+
+        with open(self.pose_file_path) as f:
+            self.true_poses = f.readlines()
 
         camera_params = load_calib(self.calib_file_path, camera_id=camera_id)
         self.detector = feature_detector(threshold=20, nonmaxSuppression=True)
         self.feature_tracker = klt_feature_tracker(
-            camera_params=camera_params, true_poses=self.poses
+            camera_params=camera_params, true_poses=self.true_poses
         )
 
         self.current_frame = cv2.imread(get_path_img(self.img_file_path, 0), 0)
@@ -42,7 +36,9 @@ class visual_odometry_monocular:
     def process_frame(self):
         self.img_id += 1
         self.old_frame = self.current_frame
-        self.current_frame_full_color = cv2.imread(get_path_img(self.img_file_path, self.img_id))
+        self.current_frame_full_color = cv2.imread(
+            get_path_img(self.img_file_path, self.img_id)
+        )
         self.current_frame = cv2.cvtColor(
             self.current_frame_full_color, cv2.COLOR_RGB2GRAY
         )
@@ -54,7 +50,7 @@ class visual_odometry_monocular:
 
     def get_true_coordinates(self):
         return get_vect_from_pose(
-            self.poses[self.img_id].strip().split(),
+            self.true_poses[self.img_id].strip().split(),
         )
 
     def get_mono_coordinates(self):

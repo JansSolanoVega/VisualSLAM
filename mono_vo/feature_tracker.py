@@ -1,14 +1,16 @@
 import cv2
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from utils import *              
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from utils import *
 from mono_vo.feature_detector import *
+
 
 class klt_feature_tracker:
     def __init__(
         self,
-        true_poses,
         camera_params,
+        true_poses=None,
         winSize=(21, 21),
         max_number_iterations=30,
         epsilon_or_accuracy=0.01,
@@ -61,7 +63,7 @@ class klt_feature_tracker:
         )
         return R, t
 
-    def track_step(self, img1, img2, feature_pts_img1, img_id):
+    def find_correspondance_points(self, feature_pts_img1, img1, img2):
         # status returns 1 if the flow has been found, otherwise, it is set to 0
         # next_points return the calculated new positions in the second image
 
@@ -72,8 +74,18 @@ class klt_feature_tracker:
             nextPts=None,
             **self.lukas_kanade_params
         )
-        tracked_pts_img1 = feature_pts_img1[status == 1]
-        tracked_pts_img2 = feature_pts_img2[status == 1]
+        tracked_pts_img1, tracked_pts_img2 = (
+            feature_pts_img1[status == 1],
+            feature_pts_img2[status == 1],
+        )
+
+        return tracked_pts_img1, tracked_pts_img2
+
+    def track_step(self, img1, img2, feature_pts_img1, img_id):
+
+        tracked_pts_img1, tracked_pts_img2 = self.find_correspondance_points(
+            feature_pts_img1, img1, img2
+        )
 
         R, t = self.get_extrinsic_params(tracked_pts_img1, tracked_pts_img2)
 

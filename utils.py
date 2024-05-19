@@ -2,17 +2,31 @@ import cv2
 import numpy as np
 import os
 
+
 def read_img_gray(path, id):
     return cv2.imread(get_path_img(path, id), 0)
-    
+
+
 def get_path_img(img_file_path, id_img):
     return os.path.join(img_file_path, str(id_img).zfill(6) + ".png")
+
 
 def form_transformation(R, t):
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = R
     T[:3, 3] = t
     return T
+
+
+def load_paths(data_dir, sequence_id):
+    pose_file_path = os.path.join(data_dir, "poses", str(sequence_id).zfill(2) + ".txt")
+    img_file_path = os.path.join(
+        data_dir, "sequences", str(sequence_id).zfill(2), "image_"
+    )
+    calib_file_path = os.path.join(
+        data_dir, "sequences", str(sequence_id).zfill(2), "calib.txt"
+    )
+    return pose_file_path, img_file_path, calib_file_path
 
 
 def load_calib(filepath, camera_id):

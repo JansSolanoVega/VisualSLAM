@@ -1,4 +1,2 @@
 __pycache__/
-*.mp4
 kitti_dataset/
-KITTI_sequence_1/

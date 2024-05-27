@@ -62,6 +62,8 @@ def load_calib(filepath, camera_id):
         v_0 = K[1][2]
     parameters["focal_length"] = f
     parameters["principal_point"] = (u_0, v_0)
+    parameters["proj_matrix"] = P
+    # print(parameters)
     return parameters
 
 

@@ -7,6 +7,7 @@ from stereo_vo.disparity_computer import *
 from stereo_vo.inlier_detector import *
 from mono_vo.feature_detector import *
 from mono_vo.feature_tracker import *
+from stereo_vo.minimizer import *
 
 DATA_DIR = "kitti_dataset"
 
@@ -34,6 +35,10 @@ class visual_odometry_stereo:
         self.camera_params_l = load_calib(self.calib_file_path, camera_id=2)
         self.feature_tracker_l = klt_feature_tracker(camera_params=self.camera_params_l)
 
+        # Rotation and traslation matrix
+        self.R = np.zeros(shape=(3, 3))
+        self.t = np.zeros(shape=(3, 1))
+
     def triangulate(self, camera_params_l, feature_pts, disparity, r_camera_shift=0.54):
         points_3d = []
         Q = np.zeros(shape=(4, 4))
@@ -54,7 +59,6 @@ class visual_odometry_stereo:
         return points_3d
 
     def process_frame(self):
-
         self.curr_frame_l = read_img_gray(self.img_l_path, self.img_id)
         self.curr_frame_r = read_img_gray(self.img_r_path, self.img_id)
 
@@ -62,33 +66,37 @@ class visual_odometry_stereo:
             self.curr_frame_l, self.curr_frame_r
         )
 
-        self.feature_pts_l = self.feature_detector.detect(self.curr_frame_l)
+        curr_feature_pts_l = self.feature_detector.detect(self.curr_frame_l)
 
-        if self.img_id > 0:
-            tracked_pts_old_l, tracked_pts_curr_l = (
+        if self.img_id > 1:
+            old_feature_pts_l, curr_feature_pts_l = (
                 self.feature_tracker_l.find_correspondance_points(
-                    self.feature_pts_l_old, self.old_frame_l, self.curr_frame_l
+                    old_feature_pts_l, self.old_frame_l, self.current_frame_l
+                )
+            )
+            self.old_points_3d = self.triangulate(
+                self.camera_params_l, old_feature_pts_l, self.curr_disparity
+            )
+            self.curr_points_3d = self.triangulate(
+                self.camera_params_l, curr_feature_pts_l, self.curr_disparity
+            )
+
+            self.old_points_3d, self.curr_points_3d = inlier_detector(
+                self.old_points_3d, self.curr_points_3d
+            )
+            self.R, self.t = get_rot_traslation(
+                least_squares(
+                    function_reprojection_error,
+                    x0,
+                    method="lm",
+                    args=(ft1, ft2, self.old_points_3d, self.curr_points_3d, p),
                 )
             )
 
-            points_3d_old = self.triangulate(
-                self.camera_params_l, tracked_pts_old_l, self.old_disparity
-            )
-
-            points_3d_curr = self.triangulate(
-                self.camera_params_l, tracked_pts_curr_l, self.curr_disparity
-            )
-
-            points_3d_old, points_3d_curr = inlier_detector(
-                points_3d_old, points_3d_curr
-            )
-            return points_3d_curr
-
         self.old_frame_l = self.current_frame_l
-        self.feature_pts_l_old = self.feature_pts_l
-        self.old_disparity = self.curr_disparity
-
+        self.old_points_3d = self.curr_points_3d
         self.img_id += 1
+        return self.t
 
     def get_true_coordinates(self):
         return get_vect_from_pose(

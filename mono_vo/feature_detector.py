@@ -26,7 +26,9 @@ class feature_detector:
 
 
 def show_features(img, fts, append=False):
-    keypoints = [cv2.KeyPoint(x, y, 10) for x, y in fts[:, 0, :]]
+    if fts.shape[1] == 1:
+        fts = fts[:, 0, :]
+    keypoints = [cv2.KeyPoint(float(x), float(y), 10) for x, y in fts]
     return show_image(cv2.drawKeypoints(img, keypoints, None), append=append)
 
 

@@ -82,6 +82,9 @@ class klt_feature_tracker:
             tracked_pts_img1, tracked_pts_img2, img1.shape
         )
 
+        tracked_pts_img1 = tracked_pts_img1.astype("int32")
+        tracked_pts_img2 = tracked_pts_img2.astype("int32")
+
         return tracked_pts_img1, tracked_pts_img2
 
     def track_step(self, img1, img2, feature_pts_img1, img_id):

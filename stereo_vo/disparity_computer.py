@@ -47,8 +47,8 @@ def compute_pts_with_disp_sequence(
     pts_r_2 = np.copy(pts_l_2)
     selected_points = np.zeros(pts_l_1.shape[0])
     for i in range(pts_l_1.shape[0]):
-        disp_value_1 = disp_1[int(pts_l_1[i, 1]), int(pts_l_1[i, 0])]  # y,x cuz opencv
-        disp_value_2 = disp_2[int(pts_l_2[i, 1]), int(pts_l_2[i, 0])]  # y,x cuz opencv
+        disp_value_1 = disp_1[pts_l_1[i, 1], pts_l_1[i, 0]]  # y,x cuz opencv
+        disp_value_2 = disp_2[pts_l_2[i, 1], pts_l_2[i, 0]]  # y,x cuz opencv
         if (
             disp_value_1 > min_thresh
             and disp_value_1 < max_thresh
@@ -77,8 +77,12 @@ if __name__ == "__main__":
 
     ft_pts_l = detector.detect(img_l, show=False)
     ft_pts_l, ft_pts_r = compute_pts_with_disp(
-        ft_pts_l, disp, min_thresh=-1.0, max_thresh=20.0
+        ft_pts_l, disp, min_thresh=-1.0, max_thresh=3.0
     )
+
+    selection = list(range(10))
+    ft_pts_l = ft_pts_l[selection]
+    ft_pts_r = ft_pts_r[selection]
 
     imgs = []
     disparity_norm = cv2.normalize(

@@ -89,7 +89,7 @@ class visual_odometry_stereo:
 
         self.curr_feature_pts["l"] = self.feature_detector.detect(self.curr_frame["l"])
 
-        if self.img_id > 1:
+        if self.img_id >= 1:
             (track_old_feature_pts_l, track_curr_feature_pts_l) = self.feature_tracker[
                 "l"
             ].find_correspondance_points(
@@ -109,6 +109,27 @@ class visual_odometry_stereo:
                 min_thresh=-1.0,
                 max_thresh=20.0,
             )
+
+            # imgs = []
+
+            # imgs.append(
+            #     show_features(self.old_frame["l"], track_old_feature_pts_l, append=True)
+            # )
+            # imgs.append(
+            #     show_features(self.old_frame["r"], track_old_feature_pts_r, append=True)
+            # )
+            # imgs.append(
+            #     show_features(
+            #         self.curr_frame["l"], track_curr_feature_pts_l, append=True
+            #     )
+            # )
+            # imgs.append(
+            #     show_features(
+            #         self.curr_frame["r"], track_curr_feature_pts_r, append=True
+            #     )
+            # )
+
+            # show_imgs(imgs)
 
             old_points_3d = triangulate(
                 self.camera_params["l"],
@@ -149,8 +170,12 @@ class visual_odometry_stereo:
                     self.camera_params["l"]["proj_matrix"],
                 ),
             )
-
-            self.R, self.t = get_rot_traslation(optRes.x)
+            rot, tras = get_rot_traslation(optRes.x)
+            if self.img_id == 1:
+                self.R, self.t = rot, tras
+            else:
+                self.t = self.t + self.R @ tras
+                self.R = rot @ self.R
 
         self.old_feature_pts = self.curr_feature_pts
         self.old_frame = self.curr_frame

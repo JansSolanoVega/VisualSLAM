@@ -40,6 +40,33 @@ def compute_pts_with_disp(pts_l, disp, min_thresh=0.0, max_thresh=100.0):
     return pts_l[selected_points], pts_r[selected_points]
 
 
+def compute_pts_with_disp_sequence(
+    pts_l_1, pts_l_2, disp_1, disp_2, min_thresh=0.0, max_thresh=100.0
+):
+    pts_r_1 = np.copy(pts_l_1)
+    pts_r_2 = np.copy(pts_l_2)
+    selected_points = np.zeros(pts_l_1.shape[0])
+    for i in range(pts_l_1.shape[0]):
+        disp_value_1 = disp_1[int(pts_l_1[i, 1]), int(pts_l_1[i, 0])]  # y,x cuz opencv
+        disp_value_2 = disp_2[int(pts_l_2[i, 1]), int(pts_l_2[i, 0])]  # y,x cuz opencv
+        if (
+            disp_value_1 > min_thresh
+            and disp_value_1 < max_thresh
+            and disp_value_2 > min_thresh
+            and disp_value_2 < max_thresh
+        ):
+            pts_r_1[i, 0] = pts_l_1[i, 0] - disp_value_1
+            pts_r_2[i, 0] = pts_l_2[i, 0] - disp_value_2
+            selected_points[i] = 1
+    selected_points = selected_points.astype(bool)
+    return (
+        pts_l_1[selected_points],
+        pts_r_1[selected_points],
+        pts_l_2[selected_points],
+        pts_r_2[selected_points],
+    )
+
+
 if __name__ == "__main__":
     data_dir = "kitti_dataset/sequences/00"
     disparity = disparity_computer()

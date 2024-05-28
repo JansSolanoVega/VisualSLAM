@@ -89,12 +89,7 @@ class visual_odometry_stereo:
 
         self.curr_feature_pts["l"] = self.feature_detector.detect(self.curr_frame["l"])
 
-        self.curr_feature_pts["l"], self.curr_feature_pts["r"] = compute_pts_with_disp(
-            self.curr_feature_pts["l"],
-            self.curr_disparity,
-            min_thresh=-1.0,
-            max_thresh=20.0,
-        )
+        # TODO: compute pts with disp for t and t+1 as SVO.ipynb
 
         if self.img_id > 1:
             (track_old_feature_pts_l, track_curr_feature_pts_l) = self.feature_tracker[
@@ -102,11 +97,21 @@ class visual_odometry_stereo:
             ].find_correspondance_points(
                 self.old_feature_pts["l"], self.old_frame["l"], self.curr_frame["l"]
             )
-            (track_old_feature_pts_r, track_curr_feature_pts_r) = self.feature_tracker[
-                "r"
-            ].find_correspondance_points(
-                self.old_feature_pts["r"], self.old_frame["r"], self.curr_frame["r"]
+
+            (
+                track_old_feature_pts_l,
+                track_old_feature_pts_r,
+                track_curr_feature_pts_l,
+                track_curr_feature_pts_r,
+            ) = compute_pts_with_disp_sequence(
+                track_old_feature_pts_l,
+                track_curr_feature_pts_l,
+                self.old_disparity,
+                self.curr_disparity,
+                min_thresh=-1.0,
+                max_thresh=20.0,
             )
+
             old_points_3d = triangulate(
                 self.camera_params["l"],
                 self.camera_params["r"],
@@ -121,27 +126,37 @@ class visual_odometry_stereo:
                 track_curr_feature_pts_r,
             )
 
-            # old_points_3d, curr_points_3d = inlier_detector(
-            #    old_points_3d, curr_points_3d
-            # )
-            x0 = np.random.randn(6)
-            # self.R, self.t = get_rot_traslation(
-            #     least_squares(
-            #         function_reprojection_error,
-            #         x0,
-            #         method="lm",
-            #         args=(
-            #             track_old_feature_pts_l,
-            #             track_curr_feature_pts_l,
-            #             old_points_3d,
-            #             curr_points_3d,
-            #             self.camera_params["l"]["proj_matrix"],
-            #         ),
-            #     )
-            # )
+            clique = inlier_detect(old_points_3d, curr_points_3d)
+            old_points_3d, curr_points_3d = (
+                old_points_3d[clique],
+                curr_points_3d[clique],
+            )
+
+            track_old_feature_pts_l, track_curr_feature_pts_l = (
+                track_old_feature_pts_l[clique],
+                track_curr_feature_pts_l[clique],
+            )
+
+            dSeed = np.zeros(6)
+            optRes = least_squares(
+                function_reprojection_error,
+                dSeed,
+                method="lm",
+                max_nfev=2000,
+                args=(
+                    track_old_feature_pts_l,
+                    track_curr_feature_pts_l,
+                    old_points_3d,
+                    curr_points_3d,
+                    self.camera_params["l"]["proj_matrix"],
+                ),
+            )
+
+            self.R, self.t = get_rot_traslation(optRes.x)
 
         self.old_feature_pts = self.curr_feature_pts
         self.old_frame = self.curr_frame
+        self.old_disparity = self.curr_disparity
         self.img_id += 1
         return self.t
 

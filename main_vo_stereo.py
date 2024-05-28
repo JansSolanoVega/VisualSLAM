@@ -3,7 +3,7 @@ from utils import *
 
 vo = visual_odometry_stereo(sequence_id=2)
 plotter = plotter()
-for i in range(1540):
+for i in range(get_number_images(vo.img_l_path)):
     vo.process_frame()
 
     mono_coord = vo.get_mono_coordinates()

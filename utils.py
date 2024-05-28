@@ -26,6 +26,10 @@ def get_path_img(img_file_path, id_img):
     return os.path.join(img_file_path, str(id_img).zfill(6) + ".png")
 
 
+def get_number_images(img_file_path):
+    return len(os.listdir(img_file_path))
+
+
 def form_transformation(R, t):
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = R

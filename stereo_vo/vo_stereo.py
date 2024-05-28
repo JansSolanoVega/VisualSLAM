@@ -89,8 +89,6 @@ class visual_odometry_stereo:
 
         self.curr_feature_pts["l"] = self.feature_detector.detect(self.curr_frame["l"])
 
-        # TODO: compute pts with disp for t and t+1 as SVO.ipynb
-
         if self.img_id > 1:
             (track_old_feature_pts_l, track_curr_feature_pts_l) = self.feature_tracker[
                 "l"

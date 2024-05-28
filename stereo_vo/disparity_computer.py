@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     ft_pts_l = detector.detect(img_l, show=False)
     ft_pts_l, ft_pts_r = compute_pts_with_disp(
-        ft_pts_l, disp, min_thresh=58.0, max_thresh=100.0
+        ft_pts_l, disp, min_thresh=-1.0, max_thresh=20.0
     )
 
     imgs = []

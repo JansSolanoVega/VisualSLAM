@@ -12,6 +12,29 @@ from stereo_vo.minimizer import *
 DATA_DIR = "kitti_dataset"
 
 
+def triangulate(camera_params_l, camera_params_r, feature_pts_l, feature_pts_r):
+    points_3d = []
+    Q = np.zeros(shape=(4, 4))
+    proj_l = camera_params_l["proj_matrix"]
+    proj_r = camera_params_r["proj_matrix"]
+
+    for i in range(len(feature_pts_l)):
+        x_l, y_l = int(feature_pts_l[i][0]), int(feature_pts_l[i][1])
+        x_r, y_r = int(feature_pts_r[i][0]), int(feature_pts_r[i][1])
+        Q[0, :] = y_l * proj_l[2, :] - proj_l[1, :]
+        Q[1, :] = -x_l * proj_l[2, :] + proj_l[0, :]
+        Q[2, :] = y_r * proj_r[2, :] - proj_r[1, :]
+        Q[3, :] = -x_r * proj_r[2, :] + proj_r[0, :]
+        [u, s, v] = np.linalg.svd(Q)
+        v = v.transpose()
+        vSmall = v[:, -1]
+        vSmall /= vSmall[-1]
+
+        points_3d[i, :] = vSmall[0:-1]
+
+    return points_3d
+
+
 class visual_odometry_stereo:
     def __init__(self, sequence_id=0):
         self.sequence_id = sequence_id
@@ -28,73 +51,86 @@ class visual_odometry_stereo:
         self.feature_detector = feature_detector(threshold=20, nonmaxSuppression=True)
         self.disp_computer = disparity_computer(numDisparities=64, blockSize=9)
 
-        self.current_frame_l = read_img_gray(self.img_l_path, id=0)
-        self.current_frame_r = read_img_gray(self.img_r_path, id=0)
+        self.curr_frame = {
+            "l": read_img_gray(self.img_l_path, id=0),
+            "r": read_img_gray(self.img_r_path, id=0),
+        }
+
+        self.camera_params = {
+            "l": load_calib(self.calib_file_path, camera_id=2),
+            "r": load_calib(self.calib_file_path, camera_id=3),
+        }
+
+        self.feature_tracker = {
+            "l": klt_feature_tracker(camera_params=self.camera_params["l"]),
+            "r": klt_feature_tracker(camera_params=self.camera_params["r"]),
+        }
+
         self.img_id = 0
-
-        self.camera_params_l = load_calib(self.calib_file_path, camera_id=2)
-        self.feature_tracker_l = klt_feature_tracker(camera_params=self.camera_params_l)
-
         # Rotation and traslation matrix
         self.R = np.zeros(shape=(3, 3))
         self.t = np.zeros(shape=(3, 1))
 
-    def triangulate(self, camera_params_l, feature_pts, disparity, r_camera_shift=0.54):
-        points_3d = []
-        Q = np.zeros(shape=(4, 4))
-        Q[0][0] = 1
-        Q[1][1] = 1
-        Q[0][3] = -camera_params_l["principal_point"][0]
-        Q[1][3] = -camera_params_l["principal_point"][1]
-        Q[2][3] = -camera_params_l["focal_length"]
-        Q[3][2] = -1 / (r_camera_shift)
-        Q[3][3] = 0  # Both cameras are equal
-
-        for feature_pt in feature_pts:
-            x, y = int(feature_pt[0]), int(feature_pt[1])
-            d = disparity[y][x]
-            homo_coord_3d = Q @ np.array([x, y, d, 1])
-            points_3d.append(homo_coord_3d[:3])
-
-        return points_3d
+        self.curr_feature_pts = {}
 
     def process_frame(self):
-        self.curr_frame_l = read_img_gray(self.img_l_path, self.img_id)
-        self.curr_frame_r = read_img_gray(self.img_r_path, self.img_id)
+        self.curr_frame = {
+            "l": read_img_gray(self.img_l_path, self.img_id),
+            "r": read_img_gray(self.img_r_path, self.img_id),
+        }
 
         self.curr_disparity = self.disp_computer.compute(
-            self.curr_frame_l, self.curr_frame_r
+            self.curr_frame["l"], self.curr_frame["r"]
         )
 
-        curr_feature_pts_l = self.feature_detector.detect(self.curr_frame_l)
+        self.curr_feature_pts["l"] = self.feature_detector.detect(self.curr_frame["l"])
+
+        self.curr_feature_pts["l"], self.curr_feature_pts["r"] = compute_pts_with_disp(
+            self.curr_feature_pts["l"],
+            self.curr_disparity,
+            min_thresh=-1.0,
+            max_thresh=20.0,
+        )
 
         if self.img_id > 1:
-            old_feature_pts_l, curr_feature_pts_l = (
-                self.feature_tracker_l.find_correspondance_points(
-                    old_feature_pts_l, self.old_frame_l, self.current_frame_l
-                )
+            (track_old_feature_pts_l, track_curr_feature_pts_l) = self.feature_tracker[
+                "l"
+            ].find_correspondance_points(
+                self.old_feature_pts["l"], self.old_frame["l"], self.curr_frame["l"]
             )
-            self.old_points_3d = self.triangulate(
-                self.camera_params_l, old_feature_pts_l, self.curr_disparity
+            (track_old_feature_pts_r, track_curr_feature_pts_r) = self.feature_tracker[
+                "r"
+            ].find_correspondance_points(
+                self.old_feature_pts["r"], self.old_frame["r"], self.curr_frame["r"]
             )
-            self.curr_points_3d = self.triangulate(
-                self.camera_params_l, curr_feature_pts_l, self.curr_disparity
+            old_points_3d = self.triangulate(
+                self.camera_params["l"],
+                self.camera_params["r"],
+                track_old_feature_pts_l,
+                track_old_feature_pts_r,
             )
 
-            self.old_points_3d, self.curr_points_3d = inlier_detector(
-                self.old_points_3d, self.curr_points_3d
+            curr_points_3d = self.triangulate(
+                self.camera_params["l"],
+                self.camera_params["r"],
+                track_curr_feature_pts_l,
+                track_curr_feature_pts_r,
+            )
+
+            old_points_3d, curr_points_3d = inlier_detector(
+                old_points_3d, curr_points_3d
             )
             self.R, self.t = get_rot_traslation(
                 least_squares(
                     function_reprojection_error,
                     x0,
                     method="lm",
-                    args=(ft1, ft2, self.old_points_3d, self.curr_points_3d, p),
+                    args=(ft1, ft2, old_points_3d, curr_points_3d, p),
                 )
             )
 
-        self.old_frame_l = self.current_frame_l
-        self.old_points_3d = self.curr_points_3d
+        self.old_feature_pts = self.curr_feature_pts
+        self.old_frame = self.curr_frame
         self.img_id += 1
         return self.t
 

@@ -13,7 +13,7 @@ DATA_DIR = "kitti_dataset"
 
 
 def triangulate(camera_params_l, camera_params_r, feature_pts_l, feature_pts_r):
-    points_3d = []
+    points_3d = np.zeros((len(feature_pts_l), 3))
     Q = np.zeros(shape=(4, 4))
     proj_l = camera_params_l["proj_matrix"]
     proj_r = camera_params_r["proj_matrix"]
@@ -26,11 +26,10 @@ def triangulate(camera_params_l, camera_params_r, feature_pts_l, feature_pts_r):
         Q[2, :] = y_r * proj_r[2, :] - proj_r[1, :]
         Q[3, :] = -x_r * proj_r[2, :] + proj_r[0, :]
         [u, s, v] = np.linalg.svd(Q)
-        v = v.transpose()
-        vSmall = v[:, -1]
-        vSmall /= vSmall[-1]
+        v = v[-1]  # last row correspond to the minimal singular value
 
-        points_3d[i, :] = vSmall[0:-1]
+        v /= v[-1]  # Homogoneus
+        points_3d[i, :] = v[0:-1]
 
     return points_3d
 
@@ -74,6 +73,11 @@ class visual_odometry_stereo:
         self.curr_feature_pts = {}
 
     def process_frame(self):
+
+        self.current_frame_full_color = cv2.imread(
+            get_path_img(self.img_l_path, self.img_id)
+        )
+
         self.curr_frame = {
             "l": read_img_gray(self.img_l_path, self.img_id),
             "r": read_img_gray(self.img_r_path, self.img_id),
@@ -103,31 +107,38 @@ class visual_odometry_stereo:
             ].find_correspondance_points(
                 self.old_feature_pts["r"], self.old_frame["r"], self.curr_frame["r"]
             )
-            old_points_3d = self.triangulate(
+            old_points_3d = triangulate(
                 self.camera_params["l"],
                 self.camera_params["r"],
                 track_old_feature_pts_l,
                 track_old_feature_pts_r,
             )
 
-            curr_points_3d = self.triangulate(
+            curr_points_3d = triangulate(
                 self.camera_params["l"],
                 self.camera_params["r"],
                 track_curr_feature_pts_l,
                 track_curr_feature_pts_r,
             )
 
-            old_points_3d, curr_points_3d = inlier_detector(
-                old_points_3d, curr_points_3d
-            )
-            self.R, self.t = get_rot_traslation(
-                least_squares(
-                    function_reprojection_error,
-                    x0,
-                    method="lm",
-                    args=(ft1, ft2, old_points_3d, curr_points_3d, p),
-                )
-            )
+            # old_points_3d, curr_points_3d = inlier_detector(
+            #    old_points_3d, curr_points_3d
+            # )
+            x0 = np.random.randn(6)
+            # self.R, self.t = get_rot_traslation(
+            #     least_squares(
+            #         function_reprojection_error,
+            #         x0,
+            #         method="lm",
+            #         args=(
+            #             track_old_feature_pts_l,
+            #             track_curr_feature_pts_l,
+            #             old_points_3d,
+            #             curr_points_3d,
+            #             self.camera_params["l"]["proj_matrix"],
+            #         ),
+            #     )
+            # )
 
         self.old_feature_pts = self.curr_feature_pts
         self.old_frame = self.curr_frame

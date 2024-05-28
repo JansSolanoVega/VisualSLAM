@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import uuid
 
 
 def read_img_gray(path, id):
@@ -74,9 +75,25 @@ def get_vect_from_pose(pose):
     return np.array([[x], [y], [z]])
 
 
-def show_image(img, shape=(1080, 720)):
+def show_image(img, shape=(1080, 720), img_name="fig", append=False):
     img = cv2.resize(img, shape)
-    cv2.imshow("fig", img), cv2.waitKey(0)
+    if append:
+        return img
+    cv2.imshow(img_name, img)
+    # cv2.imshow("fig", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def show_imgs(imgs):
+    # Display all images simultaneously
+    for idx, image in enumerate(imgs):
+        cv2.imshow(f"Image {idx+1}", image)
+
+    # Wait for any key to be pressed
+    cv2.waitKey(0)
+
+    # Close all OpenCV windows
     cv2.destroyAllWindows()
 
 

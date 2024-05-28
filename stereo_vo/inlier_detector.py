@@ -2,6 +2,19 @@ import numpy as np
 
 
 class inlier_detector:
+    """We assume that the scene is rigid, and hence it must not change between the time instance t and t+1.
+    As a result, the distance between any two features in the point cloud Wt must be same as the distance between the corresponding points in Wt+1.
+    If any such distance is not same, then either there is an error in 3D triangulation of at least one of the two features, or we have triangulated a moving, which we cannot use in the next step.
+    -->From the original point clouds, we now wish to select the largest subset such that they are all the points in this subset are consistent with each other
+
+    Returns:
+    The largest subset of pointcloud 1 and pointcloud2, such that they are all the points in this subset are consistent with each other.
+
+    Params:
+        -pointcloud1, pointcloud2
+        -threshold: If points distances differences is less than 'threshold', the distances are the 'same'
+    """
+
     def __init__(self, pointcloud1, pointcloud2, threshold=0.01):
         self.pc1 = pointcloud1
         self.pc2 = pointcloud2

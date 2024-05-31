@@ -1,7 +1,7 @@
 from stereo_vo.vo_stereo import *
 from utils import *
 
-vo = visual_odometry_stereo(sequence_id=2)
+vo = visual_odometry_stereo(sequence_id=0)
 plotter = plotter()
 for i in range(get_number_images(vo.img_l_path)):
     vo.process_frame()

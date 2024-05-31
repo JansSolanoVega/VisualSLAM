@@ -58,7 +58,7 @@ def function_reprojection_error(x, ft1, ft2, w1, w2, proj):
         reproj2_error[i] = f_next - (
             reproj2_error[i] / reproj2_error[i][2]
         )  # Removing homogeneous coord
-
+    #np.vstack((reproj1_error, reproj2_error)).shape=(2*n_features, 3)
     return np.vstack((reproj1_error, reproj2_error)).flatten()
 
 
@@ -74,4 +74,5 @@ if __name__ == "__main__":
     res_1 = least_squares(
         function_reprojection_error, x0, method="lm", args=(ft1, ft2, w1, w2, p)
     )
-    print("Param minimizing reproj error:", res_1.x)
+    print("Param minimizing reproj error:", res_1.x) #Dim: (len(x), 1)
+    print("Reprojection errors:", res_1.fun) #Dim: (n_features x reproj_dim x 2, 1)

@@ -12,11 +12,9 @@ from stereo_vo.minimizer import *
 DATA_DIR = "kitti_dataset"
 
 
-def triangulate(camera_params_l, camera_params_r, feature_pts_l, feature_pts_r):
+def triangulate(proj_l, proj_r, feature_pts_l, feature_pts_r):
     points_3d = np.zeros((len(feature_pts_l), 3))
     Q = np.zeros(shape=(4, 4))
-    proj_l = camera_params_l["proj_matrix"]
-    proj_r = camera_params_r["proj_matrix"]
 
     for i in range(len(feature_pts_l)):
         x_l, y_l = int(feature_pts_l[i][0]), int(feature_pts_l[i][1])
@@ -26,10 +24,10 @@ def triangulate(camera_params_l, camera_params_r, feature_pts_l, feature_pts_r):
         Q[2, :] = y_r * proj_r[2, :] - proj_r[1, :]
         Q[3, :] = -x_r * proj_r[2, :] + proj_r[0, :]
         [u, s, v] = np.linalg.svd(Q)
-        v = v[-1]  # last row correspond to the minimal singular value
-
-        v /= v[-1]  # Homogoneus
-        points_3d[i, :] = v[0:-1]
+        v = v.transpose()
+        vSmall = v[:, -1]
+        vSmall /= vSmall[-1]
+        points_3d[i, :] = vSmall[0:-1]
 
     return points_3d
 
@@ -109,7 +107,6 @@ class visual_odometry_stereo:
                 min_thresh=-1.0,
                 max_thresh=20.0,
             )
-
             # imgs = []
 
             # imgs.append(
@@ -132,20 +129,31 @@ class visual_odometry_stereo:
             # show_imgs(imgs)
 
             old_points_3d = triangulate(
-                self.camera_params["l"],
-                self.camera_params["r"],
+                self.camera_params["l"]["proj_matrix"],
+                self.camera_params["r"]["proj_matrix"],
                 track_old_feature_pts_l,
                 track_old_feature_pts_r,
             )
 
             curr_points_3d = triangulate(
-                self.camera_params["l"],
-                self.camera_params["r"],
+                self.camera_params["l"]["proj_matrix"],
+                self.camera_params["r"]["proj_matrix"],
                 track_curr_feature_pts_l,
                 track_curr_feature_pts_r,
             )
 
-            clique = inlier_detect(old_points_3d, curr_points_3d)
+            dist_threshold = 0.2
+
+            lClique = 0
+            clique = []
+            while lClique < 6 and len(old_points_3d) >= 6:
+                clique = inlier_detect(
+                    old_points_3d, curr_points_3d, threshold=dist_threshold
+                )
+                lClique = len(clique)
+                dist_threshold *= 2
+                # print(lClique)
+
             old_points_3d, curr_points_3d = (
                 old_points_3d[clique],
                 curr_points_3d[clique],
@@ -155,13 +163,13 @@ class visual_odometry_stereo:
                 track_old_feature_pts_l[clique],
                 track_curr_feature_pts_l[clique],
             )
-
+            print(lClique)
             dSeed = np.zeros(6)
             optRes = least_squares(
                 function_reprojection_error,
                 dSeed,
                 method="lm",
-                max_nfev=2000,
+                max_nfev=200,
                 args=(
                     track_old_feature_pts_l,
                     track_curr_feature_pts_l,
@@ -170,7 +178,20 @@ class visual_odometry_stereo:
                     self.camera_params["l"]["proj_matrix"],
                 ),
             )
+
+            optRes = self.remove_points_with_bad_reproj_error(
+                old_points_3d,
+                curr_points_3d,
+                track_old_feature_pts_l,
+                track_curr_feature_pts_l,
+                optRes=optRes,
+                errorThreshold=0.5,
+            )
+
             rot, tras = get_rot_traslation(optRes.x)
+
+            # print(optRes.x)
+            # rot, tras = get_rot_traslation(np.random.rand(6))
             if self.img_id == 1:
                 self.R, self.t = rot, tras
             else:
@@ -183,18 +204,75 @@ class visual_odometry_stereo:
         self.img_id += 1
         return self.t
 
+    def remove_points_with_bad_reproj_error(
+        self,
+        old_points_3d,
+        curr_points_3d,
+        track_old_feature_pts_l,
+        track_curr_feature_pts_l,
+        optRes,
+        errorThreshold=0.5,
+    ):
+        lClique = len(curr_points_3d)
+        error = optRes.fun
+        e = error.reshape((lClique * 2, 3))
+        errorThreshold = errorThreshold
+        reproj_error_in_x_old_bad = np.where(e[0:lClique, 0] >= errorThreshold)
+        reproj_error_in_y_old_bad = np.where(e[0:lClique, 1] >= errorThreshold)
+        reproj_error_in_z_old_bad = np.where(e[0:lClique, 2] >= errorThreshold)
+        reproj_error_in_x_curr_bad = np.where(
+            e[lClique : 2 * lClique, 0] >= errorThreshold
+        )
+        reproj_error_in_y_curr_bad = np.where(
+            e[lClique : 2 * lClique, 1] >= errorThreshold
+        )
+        reproj_error_in_z_curr_bad = np.where(
+            e[lClique : 2 * lClique, 2] >= errorThreshold
+        )
+
+        pruneIdx = (  # all 'good' points chosen with clique with bad reproj error
+            reproj_error_in_x_old_bad[0].tolist()
+            + reproj_error_in_y_old_bad[0].tolist()
+            + reproj_error_in_z_old_bad[0].tolist()
+            + reproj_error_in_x_curr_bad[0].tolist()
+            + reproj_error_in_y_curr_bad[0].tolist()
+            + reproj_error_in_z_curr_bad[0].tolist()
+        )
+
+        if len(pruneIdx) > 0:
+            uPruneIdx = list(set(pruneIdx))
+            old_points_3d = np.delete(old_points_3d, uPruneIdx, axis=0)
+            curr_points_3d = np.delete(curr_points_3d, uPruneIdx, axis=0)
+            track_old_feature_pts_l = np.delete(
+                track_old_feature_pts_l, uPruneIdx, axis=0
+            )
+            track_curr_feature_pts_l = np.delete(
+                track_curr_feature_pts_l, uPruneIdx, axis=0
+            )
+            if len(curr_points_3d) >= 6:
+                optRes = least_squares(
+                    function_reprojection_error,
+                    optRes.x,
+                    method="lm",
+                    max_nfev=200,
+                    args=(
+                        track_old_feature_pts_l,
+                        track_curr_feature_pts_l,
+                        old_points_3d,
+                        curr_points_3d,
+                        self.camera_params["l"]["proj_matrix"],
+                    ),
+                )
+
+        return optRes
+
     def get_true_coordinates(self):
         return get_vect_from_pose(
             self.poses[self.img_id].strip().split(),
         )
 
     def get_mono_coordinates(self):
-        diag = np.array(
-            [[1, 0, 0], [0, 1, 0], [0, 0, -1]]
-        )  # Matching to opencv coordinates (vertical direction is flipped)
-        adj_coord = np.matmul(diag, self.t)
-
-        return adj_coord.flatten()
+        return self.t
 
     def get_mse_error(self):
         mono_coordinates = self.get_mono_coordinates()

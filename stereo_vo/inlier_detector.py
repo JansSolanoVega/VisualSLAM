@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def inlier_detect(pointcloud1, pointcloud2, threshold=0.01):
+def inlier_detect(pointcloud1, pointcloud2, threshold=0.2):
     """We assume that the scene is rigid, and hence it must not change between the time instance t and t+1.
     As a result, the distance between any two features in the point cloud Wt must be same as the distance between the corresponding points in Wt+1.
     If any such distance is not same, then either there is an error in 3D triangulation of at least one of the two features, or we have triangulated a moving, which we cannot use in the next step.
@@ -15,8 +15,7 @@ def inlier_detect(pointcloud1, pointcloud2, threshold=0.01):
         -threshold: If points distances differences is less than 'threshold', the distances are the 'same'
     """
 
-    W = create_adjacency_matrix(pointcloud1, pointcloud2, threshold)
-    pt_idx_with_max_degree = find_node_with_max_degree(W)
+    W, pt_idx_with_max_degree = create_adjacency_matrix_find_node_max_degree(pointcloud1, pointcloud2, threshold)
     clique = [pt_idx_with_max_degree]
     while True:
         potential_nodes = find_potential_nodes_connected_within_clique(W, clique)
@@ -26,20 +25,36 @@ def inlier_detect(pointcloud1, pointcloud2, threshold=0.01):
         if max_count == 0:
             break
         clique.append(pt_idx_with_max_degree)
+        if len(clique)>100:
+            break
+
     return clique
 
 
-def create_adjacency_matrix(pc1, pc2, thresh):
+def create_adjacency_matrix_find_node_max_degree(pc1, pc2, thresh):
     num_points = len(pc1)
     W = np.zeros((num_points, num_points))
+
+    count = 0
+    maxn = 0
+    maxc = 0
+
     # diff of pairwise euclidean distance between same points in pc1 and pc2
     for i in range(num_points):
-        for j in range(num_points):
-            T2Dist = np.linalg.norm(pc2[i, :] - pc2[j, :])
-            T1Dist = np.linalg.norm(pc1[i, :] - pc1[j, :])
-            if abs(T2Dist - T1Dist) < thresh:
-                W[i, j] = 1
-    return W
+        T1Diff = pc1[i,:] - pc1
+        T2Diff = pc2[i,:] - pc2
+        T1Dist = np.linalg.norm(T1Diff, axis=1)
+        T2Dist = np.linalg.norm(T2Diff, axis=1)
+        absDiff = abs(T2Dist - T1Dist)
+        wIdx = np.where(absDiff < thresh)
+        W[i,wIdx] = 1
+        #Find node with max degree
+        count = np.sum(W[i,:])
+        if count > maxc:
+            maxc = count
+            maxn = i
+        count=0
+    return W, maxn
 
 
 def find_node_with_max_degree(W):

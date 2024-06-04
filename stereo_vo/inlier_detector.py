@@ -15,7 +15,9 @@ def inlier_detect(pointcloud1, pointcloud2, threshold=0.2):
         -threshold: If points distances differences is less than 'threshold', the distances are the 'same'
     """
 
-    W, pt_idx_with_max_degree = create_adjacency_matrix_find_node_max_degree(pointcloud1, pointcloud2, threshold)
+    W, pt_idx_with_max_degree = create_adjacency_matrix_find_node_max_degree(
+        pointcloud1, pointcloud2, threshold
+    )
     clique = [pt_idx_with_max_degree]
     while True:
         potential_nodes = find_potential_nodes_connected_within_clique(W, clique)
@@ -25,8 +27,22 @@ def inlier_detect(pointcloud1, pointcloud2, threshold=0.2):
         if max_count == 0:
             break
         clique.append(pt_idx_with_max_degree)
-        if len(clique)>100:
+        if len(clique) > 100:
             break
+
+    return clique
+
+
+def inlier_detect_iteration(pointcloud1, pointcloud2, threshold=0.2):
+    dist_threshold = threshold
+
+    lClique = 0
+    clique = []
+    while lClique < 6 and len(pointcloud1) >= 6:
+        clique = inlier_detect(pointcloud1, pointcloud2, threshold=dist_threshold)
+        lClique = len(clique)
+        dist_threshold *= 2
+        # print(lClique)
 
     return clique
 
@@ -41,19 +57,19 @@ def create_adjacency_matrix_find_node_max_degree(pc1, pc2, thresh):
 
     # diff of pairwise euclidean distance between same points in pc1 and pc2
     for i in range(num_points):
-        T1Diff = pc1[i,:] - pc1
-        T2Diff = pc2[i,:] - pc2
+        T1Diff = pc1[i, :] - pc1
+        T2Diff = pc2[i, :] - pc2
         T1Dist = np.linalg.norm(T1Diff, axis=1)
         T2Dist = np.linalg.norm(T2Diff, axis=1)
         absDiff = abs(T2Dist - T1Dist)
         wIdx = np.where(absDiff < thresh)
-        W[i,wIdx] = 1
-        #Find node with max degree
-        count = np.sum(W[i,:])
+        W[i, wIdx] = 1
+        # Find node with max degree
+        count = np.sum(W[i, :])
         if count > maxc:
             maxc = count
             maxn = i
-        count=0
+        count = 0
     return W, maxn
 
 

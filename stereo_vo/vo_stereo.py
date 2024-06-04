@@ -142,17 +142,9 @@ class visual_odometry_stereo:
                 track_curr_feature_pts_r,
             )
 
-            dist_threshold = 0.2
-
-            lClique = 0
-            clique = []
-            while lClique < 6 and len(old_points_3d) >= 6:
-                clique = inlier_detect(
-                    old_points_3d, curr_points_3d, threshold=dist_threshold
-                )
-                lClique = len(clique)
-                dist_threshold *= 2
-                # print(lClique)
+            clique = inlier_detect_iteration(
+                old_points_3d, curr_points_3d, threshold=0.2
+            )
 
             old_points_3d, curr_points_3d = (
                 old_points_3d[clique],
@@ -163,9 +155,10 @@ class visual_odometry_stereo:
                 track_old_feature_pts_l[clique],
                 track_curr_feature_pts_l[clique],
             )
-            print(lClique)
+            print(len(clique))
+
             dSeed = np.zeros(6)
-            optRes = least_squares(
+            optRes = least_squares(  # Solve PnP problem: finding the camera pose given a set of 3D points in the world system and their corresponding 2D projections in the image plane
                 function_reprojection_error,
                 dSeed,
                 method="lm",

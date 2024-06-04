@@ -1,6 +1,7 @@
 import numpy as np
 
 
+# TODO: CHECK INLIER DETECT FUNCTIONS
 def inlier_detect(pointcloud1, pointcloud2, threshold=0.2):
     """We assume that the scene is rigid, and hence it must not change between the time instance t and t+1.
     As a result, the distance between any two features in the point cloud Wt must be same as the distance between the corresponding points in Wt+1.

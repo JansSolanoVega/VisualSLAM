@@ -6,6 +6,17 @@ from utils import *
 from mono_vo.feature_detector import *
 
 
+def filter_tracked_points_error(
+    tracked_pts_img1, tracked_pts_img2, errTrackablePoints, error_thresh=4
+):
+    errThresholdedPoints = np.where(errTrackablePoints < error_thresh, 1, 0).astype(
+        bool
+    )
+    tracked_pts_img1 = tracked_pts_img1[errThresholdedPoints, ...]
+    tracked_pts_img2 = tracked_pts_img2[errThresholdedPoints, ...]
+    return tracked_pts_img1, tracked_pts_img2
+
+
 class klt_feature_tracker:
     def __init__(
         self,
@@ -81,7 +92,14 @@ class klt_feature_tracker:
             feature_pts_img1[status == 1],
             feature_pts_img2[status == 1],
         )
-        tracked_pts_img1, tracked_pts_img2 = double_check_inside_image(
+
+        errTrackablePoints = error[status == 1]
+
+        tracked_pts_img1, tracked_pts_img2 = filter_tracked_points_error(
+            tracked_pts_img1, tracked_pts_img2, errTrackablePoints
+        )
+
+        tracked_pts_img1, tracked_pts_img2 = check_inside_image(
             tracked_pts_img1, tracked_pts_img2, img1.shape
         )
 

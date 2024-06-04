@@ -46,7 +46,7 @@ class visual_odometry_stereo:
         self.img_r_path = self.img_file_path + "3"
 
         self.feature_detector = feature_detector(threshold=20, nonmaxSuppression=True)
-        self.disp_computer = disparity_computer(numDisparities=64, blockSize=9)
+        self.disp_computer = disparity_computer(algorithm="sgbm")
 
         self.curr_frame = {
             "l": read_img_gray(self.img_l_path, id=0),
@@ -103,7 +103,7 @@ class visual_odometry_stereo:
                 self.old_disparity,
                 self.curr_disparity,
                 min_thresh=-1.0,
-                max_thresh=20.0,
+                max_thresh=100.0,
             )
             # imgs = []
 

@@ -9,12 +9,24 @@ from mono_vo.feature_detector import *
 
 class disparity_computer:
     # Depth of a point is inversely proportional to the difference of image points(disparity)
-    def __init__(self, numDisparities=64, blockSize=9):
+    def __init__(self, numDisparities=64, blockSize=9, algorithm="sgbm"):
         self.numDisparities = numDisparities
-        self.stereo = cv2.StereoBM_create(
-            numDisparities=numDisparities, blockSize=blockSize
-        )
-
+        if (
+            algorithm == "bm"
+        ):  # disparity is computed by comparing the sum of absolute differences of each 'block' of pixels.
+            self.stereo = cv2.StereoBM_create(
+                numDisparities=numDisparities, blockSize=blockSize
+            )
+        elif algorithm == "sgbm":  # forces similar disparity on neighbouring blocks
+            P1 = blockSize * blockSize * 8
+            P2 = blockSize * blockSize * 32
+            self.stereo = cv2.StereoSGBM_create(
+                minDisparity=0,
+                numDisparities=numDisparities,
+                blockSize=blockSize,
+                P1=P1,
+                P2=P2,
+            )
         # blockSize: Dimension of the patch to be compared(odd as it is centered at the current pixel)
         # numDisparities: Defines the maximum disparity. For each pixel block, we will find the best disparity (find the best matching patch) from 0 to max
 
@@ -69,7 +81,7 @@ def compute_pts_with_disp_sequence(
 
 if __name__ == "__main__":
     data_dir = "kitti_dataset/sequences/00"
-    disparity = disparity_computer()
+    disparity = disparity_computer(algorithm="sgbm")
     detector = feature_detector(threshold=20, nonmaxSuppression=True)
     img_l = cv2.imread(os.path.join(data_dir, "image_2", "000000.png"), 0)
     img_r = cv2.imread(os.path.join(data_dir, "image_3", "000000.png"), 0)
@@ -77,7 +89,7 @@ if __name__ == "__main__":
 
     ft_pts_l = detector.detect(img_l, show=False)
     ft_pts_l, ft_pts_r = compute_pts_with_disp(
-        ft_pts_l, disp, min_thresh=-1.0, max_thresh=3.0
+        ft_pts_l, disp, min_thresh=-1.0, max_thresh=100.0
     )
 
     selection = list(range(10))

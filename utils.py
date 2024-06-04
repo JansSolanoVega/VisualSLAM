@@ -7,6 +7,22 @@ def read_img_gray(path, id):
     return cv2.imread(get_path_img(path, id), 0)
 
 
+def check_inside_image(pts1, pts2, shape):
+    hPts = np.where(pts2[:, 1] >= shape[0])
+    wPts = np.where(pts2[:, 0] >= shape[1])
+    outTrackPts = hPts[0].tolist() + wPts[0].tolist()
+    outDeletePts = list(set(outTrackPts))
+
+    if len(outDeletePts) > 0:
+        trackPoints1_KLT_L = np.delete(pts1, outDeletePts, axis=0)
+        trackPoints2_KLT_L = np.delete(pts2, outDeletePts, axis=0)
+    else:
+        trackPoints1_KLT_L = pts1
+        trackPoints2_KLT_L = pts2
+
+    return trackPoints1_KLT_L, trackPoints2_KLT_L
+
+
 def double_check_inside_image(pts1, pts2, shape):
     new_pts1 = []
     new_pts2 = []

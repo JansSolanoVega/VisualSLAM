@@ -13,7 +13,7 @@ for i in range(get_number_images(vo.img_l_path)):
     true_x, true_y, true_z = [int(x) for x in true_coord]
 
     traj = plotter.get_trajectory_step(true_x, true_z, draw_x, draw_z)
-    plotter.plot_step(traj, vo.current_frame_full_color)
+    plotter.plot_step(traj, vo.curr_frame["l"])
     print("MSE error:", vo.get_mse_error())
 cv2.waitKey(0)
 cv2.destroyAllWindows()

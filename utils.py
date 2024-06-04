@@ -157,6 +157,8 @@ class plotter:
     def plot_step(self, current_trajectory, current_frame):
         current_frame = cv2.resize(current_frame, (self.shape[1], self.shape[0] // 2))
 
+        current_frame = np.stack((current_frame,) * 3, axis=-1)
+
         horizontal_concatenation = np.hstack([current_trajectory, current_frame])
         cv2.imshow("Figure", horizontal_concatenation)
         cv2.waitKey(1000 // 60)

@@ -72,10 +72,6 @@ class visual_odometry_stereo:
 
     def process_frame(self):
 
-        self.current_frame_full_color = cv2.imread(
-            get_path_img(self.img_l_path, self.img_id)
-        )
-
         self.curr_frame = {
             "l": read_img_gray(self.img_l_path, self.img_id),
             "r": read_img_gray(self.img_r_path, self.img_id),
@@ -183,8 +179,6 @@ class visual_odometry_stereo:
 
             rot, tras = get_rot_traslation(optRes.x)
 
-            # print(optRes.x)
-            # rot, tras = get_rot_traslation(np.random.rand(6))
             if self.img_id == 1:
                 self.R, self.t = rot, tras
             else:

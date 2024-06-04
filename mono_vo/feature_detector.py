@@ -36,7 +36,9 @@ class feature_detector:
                     pt.pt = (pt.pt[0] + x, pt.pt[1] + y)
 
                 if len(keypoints) > 10:
-                    keypoints = sorted(keypoints, key=lambda x: -x.response)
+                    keypoints = sorted(
+                        keypoints, key=lambda x: -x.response
+                    )  # response is the strength of a keypoint: how good it is
                     for kpt in keypoints[0:10]:
                         detected_keypoints.append(kpt)
                 else:

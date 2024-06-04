@@ -125,11 +125,12 @@ class klt_feature_tracker:
                 pose1=self.true_poses[img_id - 1].strip().split(),
                 pose2=self.true_poses[img_id].strip().split(),
             )
+
             if (
                 absolute_scale > 0.1
                 and abs(t[2][0]) > abs(t[0][0])
                 and abs(t[2][0]) > abs(t[1][0])
-            ):
+            ):  # TODO: CHECK BUG IN CURVE FOR MONOCULAR
                 self.t = self.t + absolute_scale * self.R.dot(t)
                 self.R = R.dot(self.R)
 

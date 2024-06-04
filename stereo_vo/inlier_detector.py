@@ -94,14 +94,17 @@ def find_node_with_max_degree(W):
 def find_potential_nodes_connected_within_clique(W, clique):
     num_points = W.shape[0]
     potentialnodes = list()
-    isin = True
-
     # Find potential nodes which are connected to all nodes in the clique
     for i in range(num_points):
-        for j in range(len(clique)):
-            isin = isin & bool(W[i, clique[j]])
+        Wsub = W[i, clique]
+        sumForIn = np.sum(Wsub)
+        if sumForIn == len(clique):
+            isin = True
+        else:
+            isin = False
         if isin == True and i not in clique:
             potentialnodes.append(i)
+        isin = True
 
     return potentialnodes
 

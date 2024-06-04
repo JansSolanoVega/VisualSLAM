@@ -103,7 +103,7 @@ class visual_odometry_stereo:
                 self.old_disparity,
                 self.curr_disparity,
                 min_thresh=-1.0,
-                max_thresh=100.0,
+                max_thresh=50.0,
             )
             # imgs = []
 

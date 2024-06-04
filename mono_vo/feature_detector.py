@@ -24,7 +24,9 @@ class feature_detector:
 
         return detected_pts
 
-    def selective_detect(self, img, show=False, tile_h=10, tile_w=20):
+    def selective_detect(
+        self, img, show=False, tile_h=10, tile_w=20, max_keypoints_per_patch=10
+    ):
         # Loop in patches from image, and no more than 10 keypoints per patch
         H, W = img.shape
         detected_keypoints = []
@@ -35,11 +37,11 @@ class feature_detector:
                 for pt in keypoints:
                     pt.pt = (pt.pt[0] + x, pt.pt[1] + y)
 
-                if len(keypoints) > 10:
+                if len(keypoints) > max_keypoints_per_patch:
                     keypoints = sorted(
                         keypoints, key=lambda x: -x.response
                     )  # response is the strength of a keypoint: how good it is
-                    for kpt in keypoints[0:10]:
+                    for kpt in keypoints[0:max_keypoints_per_patch]:
                         detected_keypoints.append(kpt)
                 else:
                     for kpt in keypoints:

@@ -13,10 +13,12 @@ class klt_feature_tracker:
         true_poses=None,
         winSize=(21, 21),
         max_number_iterations=30,
+        max_level=3,
         epsilon_or_accuracy=0.01,
     ):
         self.lukas_kanade_params = dict(
             winSize=winSize,
+            maxLevel=max_level,
             criteria=(
                 cv2.TermCriteria_EPS | cv2.TERM_CRITERIA_COUNT,
                 max_number_iterations,
@@ -72,6 +74,7 @@ class klt_feature_tracker:
             img2,
             prevPts=feature_pts_img1,
             nextPts=None,
+            flags=cv2.MOTION_AFFINE,  # not only for rotation and translation, but also scaling and shearing
             **self.lukas_kanade_params
         )
         tracked_pts_img1, tracked_pts_img2 = (
@@ -123,8 +126,15 @@ if __name__ == "__main__":
     detector = feature_detector(threshold=20, nonmaxSuppression=True)
     img1 = cv2.imread(os.path.join(img_file_path + "2", "000000.png"), 0)
     img2 = cv2.imread(os.path.join(img_file_path + "2", "000001.png"), 0)
-    feature_points = detector.detect(img1)
+    feature_points = detector.selective_detect(img1, max_keypoints_per_patch=2)
     tracked_pts_img1, tracked_pts_img2 = tracker.find_correspondance_points(
         feature_points, img1, img2
     )
-    print(tracker.track_step(img1, img2, feature_points, img_id=0))
+    print(tracker.lukas_kanade_params)
+    # print(tracker.track_step(img1, img2, feature_points, img_id=0))
+    imgs = []
+
+    imgs.append(show_features(img1, tracked_pts_img1, append=True))
+    imgs.append(show_features(img2, tracked_pts_img2, append=True))
+
+    show_imgs(imgs)

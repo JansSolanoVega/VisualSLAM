@@ -73,24 +73,6 @@ def create_adjacency_matrix_find_node_max_degree(pc1, pc2, thresh):
     return W, maxn
 
 
-def find_node_with_max_degree(W):
-    num_points = W.shape[0]
-    count = 0
-    maxn = 0
-    maxc = 0
-
-    # Find point with maximum degree and store in maxn
-    for i in range(num_points):
-        for j in range(num_points):
-            if W[i, j] == 1:
-                count = count + 1
-        if count > maxc:
-            maxc = count
-            maxn = i
-        count = 0
-    return maxn
-
-
 def find_potential_nodes_connected_within_clique(W, clique):
     num_points = W.shape[0]
     potentialnodes = list()

@@ -140,11 +140,11 @@ class klt_feature_tracker:
 if __name__ == "__main__":
     data_dir = "kitti_dataset"
     _, img_file_path, calib_file_path = load_paths(data_dir, sequence_id=2)
-    camera_params = load_calib(calib_file_path, camera_id=2)
+    camera_params = load_calib(calib_file_path, camera_id=0)
     tracker = klt_feature_tracker(camera_params=camera_params)
     detector = feature_detector(threshold=20, nonmaxSuppression=True)
-    img1 = cv2.imread(os.path.join(img_file_path + "2", "000000.png"), 0)
-    img2 = cv2.imread(os.path.join(img_file_path + "2", "000001.png"), 0)
+    img1 = cv2.imread(os.path.join(img_file_path + "0", "000000.png"), 0)
+    img2 = cv2.imread(os.path.join(img_file_path + "0", "000001.png"), 0)
     feature_points = detector.selective_detect(img1, max_keypoints_per_patch=2)
     tracked_pts_img1, tracked_pts_img2 = tracker.find_correspondance_points(
         feature_points, img1, img2

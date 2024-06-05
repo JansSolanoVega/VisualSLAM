@@ -68,6 +68,6 @@ if __name__ == "__main__":
     data_dir = "kitti_dataset"
     detector = feature_detector(threshold=20, nonmaxSuppression=True)
     img1 = cv2.imread(
-        os.path.join(data_dir, "sequences", "00", "image_2", "000002.png"), 0
+        os.path.join(data_dir, "sequences", "00", "image_0", "000002.png"), 0
     )
     print(detector.selective_detect(img1, show=True))

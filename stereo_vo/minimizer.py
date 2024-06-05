@@ -58,13 +58,13 @@ def function_reprojection_error(x, ft1, ft2, w1, w2, proj):
         reproj2_error[i] = f_next - (
             reproj2_error[i] / reproj2_error[i][2]
         )  # Removing homogeneous coord
-    #np.vstack((reproj1_error, reproj2_error)).shape=(2*n_features, 3)
+    # np.vstack((reproj1_error, reproj2_error)).shape=(2*n_features, 3)
     return np.vstack((reproj1_error, reproj2_error)).flatten()
 
 
 if __name__ == "__main__":
     _, _, calib_file_path = load_paths(DATA_DIR, sequence_id=0)
-    p = load_calib(calib_file_path, camera_id=2)["proj_matrix"]
+    p = load_calib(calib_file_path, camera_id=0)["proj_matrix"]
 
     n_features = 10
     w1, w2 = np.random.rand(n_features, 3), np.random.rand(n_features, 3)
@@ -74,5 +74,5 @@ if __name__ == "__main__":
     res_1 = least_squares(
         function_reprojection_error, x0, method="lm", args=(ft1, ft2, w1, w2, p)
     )
-    print("Param minimizing reproj error:", res_1.x) #Dim: (len(x), 1)
-    print("Reprojection errors:", res_1.fun) #Dim: (n_features x reproj_dim x 2, 1)
+    print("Param minimizing reproj error:", res_1.x)  # Dim: (len(x), 1)
+    print("Reprojection errors:", res_1.fun)  # Dim: (n_features x reproj_dim x 2, 1)

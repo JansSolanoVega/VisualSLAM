@@ -12,7 +12,7 @@ DATA_DIR = "kitti_dataset"
 
 
 class visual_odometry_monocular:
-    def __init__(self, sequence_id=0, camera_id=2):
+    def __init__(self, sequence_id=0, camera_id=0):
         self.sequence_id = sequence_id
 
         self.pose_file_path, self.img_file_path, self.calib_file_path = load_paths(

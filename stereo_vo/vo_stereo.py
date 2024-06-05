@@ -42,8 +42,8 @@ class visual_odometry_stereo:
         with open(self.pose_file_path) as f:
             self.poses = f.readlines()
 
-        self.img_l_path = self.img_file_path + "2"
-        self.img_r_path = self.img_file_path + "3"
+        self.img_l_path = self.img_file_path + "0"
+        self.img_r_path = self.img_file_path + "1"
 
         self.feature_detector = feature_detector(threshold=20, nonmaxSuppression=True)
         self.disp_computer = disparity_computer(algorithm="sgbm")
@@ -54,8 +54,8 @@ class visual_odometry_stereo:
         }
 
         self.camera_params = {
-            "l": load_calib(self.calib_file_path, camera_id=2),
-            "r": load_calib(self.calib_file_path, camera_id=3),
+            "l": load_calib(self.calib_file_path, camera_id=0),
+            "r": load_calib(self.calib_file_path, camera_id=1),
         }
 
         self.feature_tracker = {

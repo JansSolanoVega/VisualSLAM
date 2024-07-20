@@ -99,6 +99,7 @@ def show_image(img, shape=(1080, 720), img_name="fig", append=False):
     if append:
         return img
     cv2.imshow(img_name, img)
+    # cv2.imshow("fig", img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
